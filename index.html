@@ -1,0 +1,301 @@
+<html>
+    <head>
+        <title>leafletで座席表</title>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.4.0/dist/leaflet.css"    integrity="sha512-puBpdR0798OZvTTbP4A8Ix/l+A4dHDD0DGqYW6RQ+9jxkRFclaxxQb/SJAWZfWAkuyeQUytO7+7N4QKrDh+drA=="    crossorigin=""/>
+        <!-- Make sure you put this AFTER Leaflet's CSS -->
+        <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"     integrity="sha512-QVftwZFqvtRNi0ZyCtsznlKSWOStnDORoefr1enyq5mVL4tmKB3S/EnC3rRJcxCPavG10IcrVGSmPh6Qw5lwrg=="     crossorigin=""></script>
+
+        <!-- Include Fuse.js for fuzzy search : http://kiro.me/projects/fuse.html -->
+        <script src="leaflet-fusesearch/src/fuse.js"></script>
+        <script src="leaflet-fusesearch/src/leaflet.fusesearch.js"></script>
+        <link rel="stylesheet" href="leaflet-fusesearch/src/leaflet.fusesearch.css" />
+    </head>
+
+    
+    <body>
+        <div id="map">
+        </div>
+        <hr>
+        <a href="https://qiita.com/kanaxx/items/c846c049af46ae4cdac3">Qiita記事に戻る</a>
+
+        <style>
+        #map { height: 600px;width:600px; }
+        .tiny-popup {
+            -webkit-box-sizing: border-box;
+            -moz-box-sizing: border-box;
+            position: absolute;
+            box-sizing: border-box;
+
+            background: rgb(73, 66, 66);
+            border: solid 1px grey;
+            padding: 2px;
+
+            color: white;
+            font: 12px/14px Arial, Helvetica, sans-serif;
+            font-size: 1.1em;
+
+            box-shadow: 0 1px 4px rgba(0,0,0,0.65);
+            -webkit-border-radius: 4px;
+            border-radius: 4px;
+            
+            display: none;
+            opacity: 0.8;
+            z-index: 2000;
+            margin:10px;
+        }
+
+        .tiny-popup.visible {
+            display: inline-block;
+        }
+       </style>
+
+<script>
+    //シートの画像
+    var image = {
+        url:    'seatsample.png',
+        width:  1151,
+        height: 560
+    };
+
+    var bounds = L.latLngBounds(
+        [0, 0],
+        [image.height, image.width]
+    );
+
+    var map = L.map('map', {
+        crs: L.CRS.Simple,
+        maxBounds: bounds.pad(1)
+        ,zoom:-1
+        ,maxZoom:1
+        ,minZoom:-2
+    });
+    
+    map.fitBounds(bounds);
+    L.imageOverlay(image.url, bounds).addTo(map);
+    map.on('click', onMapClick).on('zoomend', onZoom);
+
+    var seats = {
+        "A-1":[144,424],
+        "A-2":[144,270],
+        "A-3":[144,116],
+        "B-1":[504,426],
+        "B-2":[504,274],
+        "B-3":[504,116],
+        "C-1":[864,428],
+        "C-2":[864,270],
+        "C-3":[864,116]
+    }
+
+    var staffList = {
+        "A-1":{name:"長島太翼", empId:"s001", deptId:"dpt01", tel:"090-1111-1212"},
+        "A-2":{name:"千田一輝", empId:"s002", deptId:"dpt02", tel:"090-2222-2121"},
+        "A-3":{name:"山崎年紀", empId:"s003", deptId:"dpt03", tel:"090-3333-0000"},
+        "B-1":{name:"太田正勝", empId:"s004", deptId:"dpt01", tel:"090-4444-0000"},
+        "B-2":{name:"中谷朱里", empId:"s005", deptId:"dpt02", tel:"090-5555-0000"},
+        "B-3":{name:"南部遥華", empId:"s006", deptId:"dpt02", tel:"080-1111-3456"},
+        // "C-1":{name:"三橋義雄", empId:"s007", deptId:"dpt02", tel:"090-000-0000"},
+        "C-2":{name:"小沼咲雪菜", empId:"s008", deptId:"dpt01", tel:"080-2222-2345"},
+        "C-3":{name:"長島太翼", empId:"s001", deptId:"dpt01", tel:"080-3333-1234"},
+    };
+
+    var deptList = {
+        dpt00 : {name: "空き", icon:"checkbox_unchecked.png"},
+        dpt01 : {name: "開発部", icon:"small_star2_skyblue.png"},
+        dpt02 : {name: "営業部", icon:"money_yen_coin3.png"},
+        dpt03 : {name: "総務部", icon:"simple_leaf3.png"},
+    };
+
+    seatJson = {"type":"FeatureCollection","features":[]};
+    for( s in seats){
+        f = {"type":"Feature"};
+        f.id = s;
+
+        geo = {"type":"Point","coordinates":[]};
+        geo.coordinates=seats[s];
+        f.geometry = geo;
+
+        staff = staffList[s];
+        if(staff){
+            dept = deptList[staff.deptId];
+            staff.dept = dept;
+            f.properties = staff;
+        }else{
+            staff = {};
+            staff.name = '空き';
+            staff.deptId = 'dpt00';
+            staff.dept = deptList['dpt00'];
+            f.properties = staff;
+        }
+        seatJson.features.push(f);
+    }
+
+    var setupIcons = function() {
+        var icons = {};
+        for (var dptId in deptList) {
+            var icon = deptList[dptId].icon;
+            var url = "icons/" + icon;
+            var icon = L.icon({
+                iconUrl: url,
+                iconSize: iconsize(),
+                popupAnchor: [0, -28]
+            });
+            icons[dptId] = icon;
+        }
+        return icons;
+    };
+
+    var layers = {},
+        allDeptLayer = L.layerGroup(),
+        layerCtrl = L.control.layers();
+
+    for (var dptId in deptList) {
+        var layer = L.featureGroup();
+        layers[dptId] = layer;
+        allDeptLayer.addLayer(layer);
+        
+        //検索パネル用
+        var dpt = deptList[dptId],
+            desc = '<img class="layer-control-img" src="icons/' + dpt.icon + '" width="20"> ' + dpt.name;
+        layerCtrl.addOverlay(layer, desc);
+    }
+    layerCtrl.addTo(map);
+    allDeptLayer.addTo(map);
+
+    var icons = setupIcons();
+    var markers = displayFeatures(seatJson.features, layers, icons);
+    
+    // console.log(layers);
+    // L.control.infoPane('infopane', {position: 'bottomright'}).addTo(map);
+
+    var options = {
+        position: 'topright',
+        title: '検索',
+        placeholder: '社員名、部署名、TEL',
+        maxResultLength: 15,
+        threshold: 0.5,
+        showInvisibleFeatures: true,
+        showResultFct: function(feature, container) {
+
+            //検索結果に表示する内容を決める
+            //geojsonのfeatureとcontainerが渡されるので頑張って組み立てる
+            props = feature.properties;
+            var name = L.DomUtil.create('b', null, container);
+            name.innerHTML = props.name;
+            container.appendChild(L.DomUtil.create('br', null, container));
+            var info = props.dept.name + ' / ' + props.tel + ' / ' + props.empId;
+            container.appendChild(document.createTextNode(info));
+        }
+    };
+    var fuseSearchCtrl = L.control.fuseSearch(options);
+    
+    var props = ['name', 'empId', 'deptId', 'dept.name', 'tel'];
+    fuseSearchCtrl.indexFeatures(seatJson.features, props);
+    map.addControl(fuseSearchCtrl);
+
+
+    console.log('==end==');
+
+    function onMapClick(e) {
+        console.log(e.latlng);
+    }
+    
+    function iconsize(x){
+        if( x == -2 ){ return [15,15]; }
+        if( x == -1 ){ return [30,30]; }
+        if( x == 0 ){ return [60,60]; }
+        if( x == 1 ){ return [150,150]; }
+        return [30,30];
+    }
+
+    function onZoom(e){
+        z = map.getZoom();
+        // console.log(z);
+        newsize = iconsize(z);
+        for( m in markers){
+            marker = markers[m];
+            src = marker._icon.currentSrc;
+            
+            var icon = L.icon({
+                iconUrl: src,
+                iconSize: newsize,
+                popupAnchor: [0, -10]
+            });
+            marker.setIcon(icon);
+        }
+    }
+
+    function displayFeatures(features, layers, icons) {
+
+        //div.tiny-popupを作る（マウスオーバーした時に見えるやつ）
+        var popup = L.DomUtil.create('div', 'tiny-popup', map.getContainer());
+        var markers = [];
+
+        for (var id in features) {
+            var feat = features[id];
+            var dptId = feat.properties.deptId;
+
+            //座席を地図上にポイントするのはL.geoJsonを呼び出すだけ
+            var site = L.geoJson(feat, {
+                pointToLayer: function(feature, latLng) {
+                    var photo = icons[dptId];
+                    //社員番号が取れる場合＝空き席ではない場合は、photoフォルダから社員ID.pngを取り出す
+                    if(feature.properties.empId){
+                        photo = L.icon({
+                            iconUrl: 'photo/' + feature.properties.empId + '.png',
+                            iconSize: iconsize(),
+                            iconAnchor: [20, 20],
+                            popupAnchor: [0, -30]
+                        });
+                    }
+                    var marker = L.marker(latLng, {
+                        icon: photo,
+                        keyboard: false,
+                        riseOnHover: true
+                    });
+                    markers.push(marker);
+
+                    if (! L.touch) {
+                        marker.on('mouseover', function(e) {
+                            var nom = e.target.feature.properties.name;
+                            popup.innerHTML = nom;
+                            var pos = map.latLngToContainerPoint(e.latlng);
+                            L.DomUtil.setPosition(popup, pos);
+                            L.DomUtil.addClass(popup, 'visible');
+                        }).on('mouseout', function(e) {
+                            L.DomUtil.removeClass(popup, 'visible');
+                        });
+                    }
+                    return marker;
+                },
+                onEachFeature: onEachFeature
+            });
+            var layer = layers[dptId];
+            if (layer !== undefined) {
+                layer.addLayer(site);
+            }
+        }
+        return markers;
+    }
+
+    function onEachFeature(feature, layer) {
+        // Keep track of the layer(marker)
+        feature.layer = layer;
+
+        var props = feature.properties;
+        if (props) {
+            var desc = '<span id="feature-popup">';
+            desc += '<strong>' + props.name + '</strong><br/>';
+            desc += '<em>部署：' + props.dept.name + '</em></br>'
+            
+            var tel = props.tel;
+            if (tel) {
+                desc += tel + '</br>';
+            }
+            
+            desc += '</span>';
+            layer.bindPopup(desc);
+        }
+    }
+</script>
+    </body>
+</html>
