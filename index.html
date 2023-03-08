@@ -298,9 +298,10 @@
         let staffList = {};
         if (result.status === 200) {
             for (item in data) {
-                seats = {...seats, `${item.department}-${item.seatNo}`:[item.x,item.y]}
+                var seatNo = `${item.department}-${item.seatNo}`;
+                seats[seatNo] = [item.x,item.y];
                 if (item[userid] != undefined) {
-                    staffList = {...staffList, `${item.department}-${item.seatNo}`:{name:item.name, userid:item.userid, deptId:"dpt01", mailAddress:item.mailAddress}}
+                    staffList[seatNo] = {name:item.name, userid:item.userid, deptId:"dpt01", mailAddress:item.mailAddress};
                 }
             }
         }
