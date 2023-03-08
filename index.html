@@ -1,9 +1,6 @@
 <html>
     <head>
-        <meta charset="UTF-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>leafletで座席表</title>
+        <title>座席表</title>
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.4.0/dist/leaflet.css"    integrity="sha512-puBpdR0798OZvTTbP4A8Ix/l+A4dHDD0DGqYW6RQ+9jxkRFclaxxQb/SJAWZfWAkuyeQUytO7+7N4QKrDh+drA=="    crossorigin=""/>
         <!-- Make sure you put this AFTER Leaflet's CSS -->
         <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"     integrity="sha512-QVftwZFqvtRNi0ZyCtsznlKSWOStnDORoefr1enyq5mVL4tmKB3S/EnC3rRJcxCPavG10IcrVGSmPh6Qw5lwrg=="     crossorigin=""></script>
@@ -56,8 +53,8 @@
     //シートの画像
     var image = {
         url:    'seatsample.png',
-        width:  722,
-        height: 796
+        width:  1151,
+        height: 560
     };
 
     var bounds = L.latLngBounds(
@@ -77,28 +74,18 @@
     L.imageOverlay(image.url, bounds).addTo(map);
     map.on('click', onMapClick).on('zoomend', onZoom);
 
-    var seats = {
-        "A-1":[144,424],
-        "A-2":[144,270],
-        "A-3":[144,116],
-        "B-1":[504,426],
-        "B-2":[504,274],
-        "B-3":[504,116],
-        "C-1":[864,428],
-        "C-2":[864,270],
-        "C-3":[864,116]
-    }
+    var seats = seat()
 
     var staffList = {
-        "A-1":{name:"長島太翼", empId:"s001", deptId:"dpt01", tel:"090-1111-1212"},
-        "A-2":{name:"千田一輝", empId:"s002", deptId:"dpt02", tel:"090-2222-2121"},
-        "A-3":{name:"山崎年紀", empId:"s003", deptId:"dpt03", tel:"090-3333-0000"},
-        "B-1":{name:"太田正勝", empId:"s004", deptId:"dpt01", tel:"090-4444-0000"},
-        "B-2":{name:"中谷朱里", empId:"s005", deptId:"dpt02", tel:"090-5555-0000"},
-        "B-3":{name:"南部遥華", empId:"s006", deptId:"dpt02", tel:"080-1111-3456"},
-        // "C-1":{name:"三橋義雄", empId:"s007", deptId:"dpt02", tel:"090-000-0000"},
-        "C-2":{name:"小沼咲雪菜", empId:"s008", deptId:"dpt01", tel:"080-2222-2345"},
-        "C-3":{name:"長島太翼", empId:"s001", deptId:"dpt01", tel:"080-3333-1234"},
+        "A-1":{name:"長島太翼", userid:"s001", department:"dpt01", mailAddress:"090-1111-1212"},
+        "A-2":{name:"千田一輝", userid:"s002", department:"dpt02", mailAddress:"090-2222-2121"},
+        "A-3":{name:"山崎年紀", userid:"s003", department:"dpt03", mailAddress:"090-3333-0000"},
+        "B-1":{name:"太田正勝", userid:"s004", department:"dpt01", mailAddress:"090-4444-0000"},
+        "B-2":{name:"中谷朱里", userid:"s005", department:"dpt02", mailAddress:"090-5555-0000"},
+        "B-3":{name:"南部遥華", userid:"s006", department:"dpt02", mailAddress:"080-1111-3456"},
+        "C-1":{name:"三橋義雄", userid:"s007", department:"dpt02", mailAddress:"090-0000-0000"},
+        "C-2":{name:"小沼咲雪", userid:"s008", department:"dpt01", mailAddress:"080-2222-2345"},
+        "C-3":{name:"長島太翼", userid:"s001", department:"dpt01", mailAddress:"080-3333-1234"},
     };
 
     var deptList = {
@@ -119,13 +106,13 @@
 
         staff = staffList[s];
         if(staff){
-            dept = deptList[staff.deptId];
+            dept = deptList[staff.department];
             staff.dept = dept;
             f.properties = staff;
         }else{
             staff = {};
             staff.name = '空き';
-            staff.deptId = 'dpt00';
+            staff.department = 'dpt00';
             staff.dept = deptList['dpt00'];
             f.properties = staff;
         }
@@ -173,7 +160,7 @@
     var options = {
         position: 'topright',
         title: '検索',
-        placeholder: '社員名、部署名、TEL',
+        placeholder: '社員名、部署名、メール',
         maxResultLength: 15,
         threshold: 0.5,
         showInvisibleFeatures: true,
@@ -185,13 +172,13 @@
             var name = L.DomUtil.create('b', null, container);
             name.innerHTML = props.name;
             container.appendChild(L.DomUtil.create('br', null, container));
-            var info = props.dept.name + ' / ' + props.tel + ' / ' + props.empId;
+            var info = props.dept.name + ' / ' + props.mailAddress + ' / ' + props.userid;
             container.appendChild(document.createTextNode(info));
         }
     };
     var fuseSearchCtrl = L.control.fuseSearch(options);
     
-    var props = ['name', 'empId', 'deptId', 'dept.name', 'tel'];
+    var props = ['name', 'userid', 'department', 'dept.name', 'mailAddress'];
     fuseSearchCtrl.indexFeatures(seatJson.features, props);
     map.addControl(fuseSearchCtrl);
 
@@ -235,16 +222,16 @@
 
         for (var id in features) {
             var feat = features[id];
-            var dptId = feat.properties.deptId;
+            var dptId = feat.properties.department;
 
             //座席を地図上にポイントするのはL.geoJsonを呼び出すだけ
             var site = L.geoJson(feat, {
                 pointToLayer: function(feature, latLng) {
                     var photo = icons[dptId];
                     //社員番号が取れる場合＝空き席ではない場合は、photoフォルダから社員ID.pngを取り出す
-                    if(feature.properties.empId){
+                    if(feature.properties.userid){
                         photo = L.icon({
-                            iconUrl: 'photo/' + feature.properties.empId + '.png',
+                            iconUrl: 'photo/' + feature.properties.userid + '.png',
                             iconSize: iconsize(),
                             iconAnchor: [20, 20],
                             popupAnchor: [0, -30]
@@ -290,14 +277,53 @@
             desc += '<strong>' + props.name + '</strong><br/>';
             desc += '<em>部署：' + props.dept.name + '</em></br>'
             
-            var tel = props.tel;
-            if (tel) {
-                desc += tel + '</br>';
+            var mailAddress = props.mailAddress;
+            if (mailAddress) {
+                desc += mailAddress + '</br>';
             }
             
             desc += '</span>';
             layer.bindPopup(desc);
         }
+    }
+
+    // register-api
+    const api = 'https://b8gnm6ogsj.execute-api.ap-northeast-1.amazonaws.com/dev/register/seatlist';
+
+    // 座席を取得
+    async function seat() {
+        console.log(api); // デバッグ表示
+        
+        let result = await fetch(api, {mode: "cors"})
+        return reflect(result)
+    }
+    // 応答結果を表示
+    async function reflect(result) {
+        console.log(result); // デバッグ表示
+        const data = await result.json()
+        console.log(data)
+        let s = "";
+        if (result.status === 200) {}
+        else if (result.status === 400) {
+            s = `
+          <h3>${data.message}</h3>
+          `;
+          document.write(s);
+        } else {
+            s = `
+          <h3>不正な値が入力されたか、サーバーで何らかのエラーが発生しました。</h3>
+          `;
+          document.write(s);
+        }
+        return data;
+    }
+    // エラーを表示
+    function errorReflect(error) {
+        console.log(error)
+        const s = `
+      <h3>エラーが発生しました。</h3>
+    `;
+        document.write(s);
     }
 </script>
     </body>
