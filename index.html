@@ -77,19 +77,7 @@
     L.imageOverlay(image.url, bounds).addTo(map);
     map.on('click', onMapClick).on('zoomend', onZoom);
 
-    var seats = seat()
-
-    var staffList = {
-        "A-1":{name:"長島太翼", userid:"s001", department:"dpt01", mailAddress:"090-1111-1212"},
-        "A-2":{name:"千田一輝", userid:"s002", department:"dpt02", mailAddress:"090-2222-2121"},
-        "A-3":{name:"山崎年紀", userid:"s003", department:"dpt03", mailAddress:"090-3333-0000"},
-        "B-1":{name:"太田正勝", userid:"s004", department:"dpt01", mailAddress:"090-4444-0000"},
-        "B-2":{name:"中谷朱里", userid:"s005", department:"dpt02", mailAddress:"090-5555-0000"},
-        "B-3":{name:"南部遥華", userid:"s006", department:"dpt02", mailAddress:"080-1111-3456"},
-        "C-1":{name:"三橋義雄", userid:"s007", department:"dpt02", mailAddress:"090-0000-0000"},
-        "C-2":{name:"小沼咲雪", userid:"s008", department:"dpt01", mailAddress:"080-2222-2345"},
-        "C-3":{name:"長島太翼", userid:"s001", department:"dpt01", mailAddress:"080-3333-1234"},
-    };
+    var {seats, staffList} = seat();
 
     var deptList = {
         dpt00 : {name: "空き", icon:"checkbox_unchecked.png"},
@@ -306,7 +294,16 @@
         const data = await result.json()
         console.log(data)
         let s = "";
-        if (result.status === 200) {}
+        let seats = {};
+        let staffList = {};
+        if (result.status === 200) {
+            for (item in data) {
+                seats = {...seats, `${item.department}-${item.seatNo}`:[item.x,item.y]}
+                if (item[userid] != undefined) {
+                    staffList = {...staffList, `${item.department}-${item.seatNo}`:{name:item.name, userid:item.userid, deptId:"dpt01", mailAddress:item.mailAddress}}
+                }
+            }
+        }
         else if (result.status === 400) {
             s = `
           <h3>${data.message}</h3>
@@ -318,7 +315,7 @@
           `;
           document.write(s);
         }
-        return data;
+        return {seats, staffList};
     }
     // エラーを表示
     function errorReflect(error) {
