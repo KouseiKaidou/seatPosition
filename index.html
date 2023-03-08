@@ -1,6 +1,9 @@
 <html>
     <head>
         <title>座席表</title>
+        <meta charset="UTF-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.4.0/dist/leaflet.css"    integrity="sha512-puBpdR0798OZvTTbP4A8Ix/l+A4dHDD0DGqYW6RQ+9jxkRFclaxxQb/SJAWZfWAkuyeQUytO7+7N4QKrDh+drA=="    crossorigin=""/>
         <!-- Make sure you put this AFTER Leaflet's CSS -->
         <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"     integrity="sha512-QVftwZFqvtRNi0ZyCtsznlKSWOStnDORoefr1enyq5mVL4tmKB3S/EnC3rRJcxCPavG10IcrVGSmPh6Qw5lwrg=="     crossorigin=""></script>
@@ -16,7 +19,7 @@
         <div id="map">
         </div>
         <hr>
-        <a href="https://qiita.com/kanaxx/items/c846c049af46ae4cdac3">Qiita記事に戻る</a>
+        <a href="https://test.datms6bdmb4qa.amplifyapp.com/">採番画面に戻る</a>
 
         <style>
         #map { height: 600px;width:600px; }
@@ -53,8 +56,8 @@
     //シートの画像
     var image = {
         url:    'seatsample.png',
-        width:  1151,
-        height: 560
+        width:  722,
+        height: 796
     };
 
     var bounds = L.latLngBounds(
