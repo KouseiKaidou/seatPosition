@@ -77,6 +77,9 @@
     L.imageOverlay(image.url, bounds).addTo(map);
     map.on('click', onMapClick).on('zoomend', onZoom);
 
+    // register-api
+    const api = 'https://b8gnm6ogsj.execute-api.ap-northeast-1.amazonaws.com/dev/register/seatlist';
+
     var {seats, staffList} = seat();
 
     var deptList = {
@@ -277,9 +280,6 @@
             layer.bindPopup(desc);
         }
     }
-
-    // register-api
-    const api = 'https://b8gnm6ogsj.execute-api.ap-northeast-1.amazonaws.com/dev/register/seatlist';
 
     // 座席を取得
     async function seat() {
