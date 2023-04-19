@@ -300,7 +300,7 @@
         let seats = {};
         let staffList = {};
         if (result.status === 200) {
-            for (item in data) {
+            for (const item in data) {
                 var seatNo = `${item.department}-${item.seatNo}`;
                 seats[seatNo] = [item.x,item.y];
                 if (item[userid] != undefined) {
