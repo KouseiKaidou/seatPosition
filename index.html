@@ -1,9 +1,6 @@
 <html>
     <head>
         <title>座席表</title>
-        <meta charset="UTF-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.4.0/dist/leaflet.css"    integrity="sha512-puBpdR0798OZvTTbP4A8Ix/l+A4dHDD0DGqYW6RQ+9jxkRFclaxxQb/SJAWZfWAkuyeQUytO7+7N4QKrDh+drA=="    crossorigin=""/>
         <!-- Make sure you put this AFTER Leaflet's CSS -->
         <script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"     integrity="sha512-QVftwZFqvtRNi0ZyCtsznlKSWOStnDORoefr1enyq5mVL4tmKB3S/EnC3rRJcxCPavG10IcrVGSmPh6Qw5lwrg=="     crossorigin=""></script>
@@ -18,11 +15,11 @@
     <body>
         <div id="map">
         </div>
-    <hr>
-    <a href="https://main.d3715qbrta1wwx.amplifyapp.com/">座席表</a>
-    <a href="https://main.d3vkykcg3zkvui.amplifyapp.com/">検索画面</a>
-    <a href="https://main.dh2s54ysidjqd.amplifyapp.com/">ユーザ登録画面</a>
-    <a href="https://test.datms6bdmb4qa.amplifyapp.com/">採番画面</a>
+        <hr>
+        <a href="https://main.d3715qbrta1wwx.amplifyapp.com/">座席表</a>
+        <a href="https://test.d3vkykcg3zkvui.amplifyapp.com/">検索画面</a>
+        <a href="https://main.dh2s54ysidjqd.amplifyapp.com/">ユーザ登録画面</a>
+        <a href="https://test.datms6bdmb4qa.amplifyapp.com/">採番画面</a>
 
         <style>
         #map { height: 600px;width:600px; }
@@ -80,16 +77,47 @@
     L.imageOverlay(image.url, bounds).addTo(map);
     map.on('click', onMapClick).on('zoomend', onZoom);
 
-    // register-api
-    const api = 'https://b8gnm6ogsj.execute-api.ap-northeast-1.amazonaws.com/dev/seatlist';
+        // register-api
+        const api = 'https://b8gnm6ogsj.execute-api.ap-northeast-1.amazonaws.com/dev/seatlist';
 
-    var {seats, staffList} = seat();
+        // 座席を取得
+        function seat() {
+            console.log(api); // デバッグ表示
+            let request = new XMLHttpRequest();
+            request.open('GET', api, false);
+            request.send(null);
+            let data = request.response;
+            return reflect(JSON.parse(data));
+        }
+        // 応答結果を表示
+        function reflect(data) {
+            console.log(data)
+            let s = "";
+            let seats = {};
+            let staffList = {};
+                for (const item of data) {
+                    var seatNo = `${item.department}-${item.seatNo}`;
+                    seats[seatNo] = [item.x, item.y];
+                    if (item.userId != 0) {
+                        staffList[seatNo] = { name: item.name, empId: item.userid, deptId: item.department, tel: item.mailAddress };
+                    }else{
+                        staffList[seatNo] = { name: '空き', empId: '空き', deptId: "dpt01", tel: '空き' };
+                    }
+                }
+            return { seats, staffList };
+        }
+
+    
+    var result = seat();
+    var seats = result.seats;
+
+    var staffList = result.staffList;
 
     var deptList = {
         dpt00 : {name: "空き", icon:"checkbox_unchecked.png"},
-        dpt01 : {name: "開発部", icon:"small_star2_skyblue.png"},
-        dpt02 : {name: "営業部", icon:"money_yen_coin3.png"},
-        dpt03 : {name: "総務部", icon:"simple_leaf3.png"},
+        dpt01 : {name: "NB1", icon:"small_star2_skyblue.png"},
+        dpt02 : {name: "NB2", icon:"money_yen_coin3.png"},
+        dpt03 : {name: "NB3", icon:"simple_leaf3.png"},
     };
 
     seatJson = {"type":"FeatureCollection","features":[]};
@@ -103,13 +131,13 @@
 
         staff = staffList[s];
         if(staff){
-            dept = deptList[staff.department];
+            dept = deptList[staff.deptId];
             staff.dept = dept;
             f.properties = staff;
         }else{
             staff = {};
             staff.name = '空き';
-            staff.department = 'dpt00';
+            staff.deptId = 'dpt00';
             staff.dept = deptList['dpt00'];
             f.properties = staff;
         }
@@ -157,7 +185,7 @@
     var options = {
         position: 'topright',
         title: '検索',
-        placeholder: '社員名、部署名、メール',
+        placeholder: '社員名、部署名、TEL',
         maxResultLength: 15,
         threshold: 0.5,
         showInvisibleFeatures: true,
@@ -169,13 +197,13 @@
             var name = L.DomUtil.create('b', null, container);
             name.innerHTML = props.name;
             container.appendChild(L.DomUtil.create('br', null, container));
-            var info = props.dept.name + ' / ' + props.mailAddress + ' / ' + props.userid;
+            var info = props.dept.name + ' / ' + props.tel + ' / ' + props.empId;
             container.appendChild(document.createTextNode(info));
         }
     };
     var fuseSearchCtrl = L.control.fuseSearch(options);
     
-    var props = ['name', 'userid', 'department', 'dept.name', 'mailAddress'];
+    var props = ['name', 'empId', 'deptId', 'dept.name', 'tel'];
     fuseSearchCtrl.indexFeatures(seatJson.features, props);
     map.addControl(fuseSearchCtrl);
 
@@ -219,16 +247,16 @@
 
         for (var id in features) {
             var feat = features[id];
-            var dptId = feat.properties.department;
+            var dptId = feat.properties.deptId;
 
             //座席を地図上にポイントするのはL.geoJsonを呼び出すだけ
             var site = L.geoJson(feat, {
                 pointToLayer: function(feature, latLng) {
                     var photo = icons[dptId];
                     //社員番号が取れる場合＝空き席ではない場合は、photoフォルダから社員ID.pngを取り出す
-                    if(feature.properties.userid){
+                    if(feature.properties.empId){
                         photo = L.icon({
-                            iconUrl: 'photo/' + feature.properties.userid + '.png',
+                            iconUrl: 'photo/' + feature.properties.empId + '.png',
                             iconSize: iconsize(),
                             iconAnchor: [20, 20],
                             popupAnchor: [0, -30]
@@ -274,60 +302,14 @@
             desc += '<strong>' + props.name + '</strong><br/>';
             desc += '<em>部署：' + props.dept.name + '</em></br>'
             
-            var mailAddress = props.mailAddress;
-            if (mailAddress) {
-                desc += mailAddress + '</br>';
+            var tel = props.tel;
+            if (tel) {
+                desc += tel + '</br>';
             }
             
             desc += '</span>';
             layer.bindPopup(desc);
         }
-    }
-
-    // 座席を取得
-    async function seat() {
-        console.log(api); // デバッグ表示
-        
-        let result = await fetch(api, {mode: "cors"})
-        return reflect(result)
-    }
-    // 応答結果を表示
-    async function reflect(result) {
-        console.log(result); // デバッグ表示
-        const data = await result.json()
-        console.log(data)
-        let s = "";
-        let seats = {};
-        let staffList = {};
-        if (result.status === 200) {
-            for (const item in data) {
-                var seatNo = `${item.department}-${item.seatNo}`;
-                seats[seatNo] = [item.x,item.y];
-                if (item[userid] != undefined) {
-                    staffList[seatNo] = {name:item.name, userid:item.userid, deptId:"dpt01", mailAddress:item.mailAddress};
-                }
-            }
-        }
-        else if (result.status === 400) {
-            s = `
-          <h3>${data.message}</h3>
-          `;
-          document.write(s);
-        } else {
-            s = `
-          <h3>不正な値が入力されたか、サーバーで何らかのエラーが発生しました。</h3>
-          `;
-          document.write(s);
-        }
-        return {seats, staffList};
-    }
-    // エラーを表示
-    function errorReflect(error) {
-        console.log(error)
-        const s = `
-      <h3>エラーが発生しました。</h3>
-    `;
-        document.write(s);
     }
 </script>
     </body>
